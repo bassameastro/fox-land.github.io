@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='images/fox.ico') }}" type="image/x-icon">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <style>
+        /* Basic styling for messages and profile photos */
+        .message-box {
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        .message {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .message.left {
+            flex-direction: row;
+        }
+        .message.right {
+            flex-direction: row-reverse;
+        }
+        .profile-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .message-content {
+            max-width: 70%;
+        }
+        .message-name {
+            font-weight: bold;
+        }
+        .message-name.color-1 { color: #1e90ff; }
+        .message-name.color-2 { color: #32cd32; }
+        .message-name.color-3 { color: #ff6347; }
+        .message-name.color-4 { color: #ffa500; }
+        .message-name.color-5 { color: #8a2be2; }
+        .message-name.color-6 { color: #dc143c; }
+        .message-time {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .inputs {
+            display: flex;
+            margin-top: 10px;
+        }
+        .inputs input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .inputs button {
+            padding: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .inputs button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="message-box" id="messages"></div>
+    <div class="inputs">
+        <input type="text" placeholder="Type your message here..." id="message" onkeydown="handleKeyDown(event)">
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+    <script type="text/javascript">
+        var socketio = io();
+
+        const messages = document.getElementById("messages");
+
+        const getColorClass = (name) => {
+            const hash = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const colorClassIndex = hash % 6 + 1; // Cycle through color classes
+            return `color-${colorClassIndex}`;
+        };
+
+        const createMessage = (name, msg, time, profilePhoto, isRightAlign) => {
+            const alignmentClass = isRightAlign ? 'right' : 'left';
+            const colorClass = getColorClass(name);
+            const content = `
+            <div class="message ${alignmentClass}">
+              <img src="${profilePhoto}" alt="Profile Photo" class="profile-photo"/>
+              <div class="message-content">
+                <div class="message-text">
+                  <span class="message-name ${colorClass}">${name}</span>: ${msg}
+                  <div class="message-time">${time}</div>
+                </div>
+              </div>
+            </div>
+            `;
+            messages.innerHTML += content;
+            messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
+        };
+
+        socketio.on("message", (data) => {
+            const isRightAlign = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB1D-\uFB4F\uFE70-\uFEFF]/.test(data.message);
+            createMessage(data.name, data.message, new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), data.profilePhoto, isRightAlign);
+        });
+
+        const sendMessage = () => {
+            const message = document.getElementById("message");
+            if (message.value.trim() === "") return;
+            socketio.emit("message", { data: message.value });
+            message.value = "";
+        };
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent newline in textarea
+                sendMessage();
+            }
+        };
+    </script>
+</body>
+</html>
